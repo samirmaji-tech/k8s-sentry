@@ -1,0 +1,14 @@
+apiVersion: v2
+name: k8s-sentry
+description: Autonomous AI-powered Kubernetes incident commander (read-only agent).
+type: application
+version: 0.1.0          # chart version
+appVersion: "0.1.0"     # application (image) version
+keywords:
+  - sre
+  - incident-response
+  - ai
+  - kubernetes
+home: https://github.com/your-org/k8s-sentry
+maintainers:
+  - name: Samir Maji

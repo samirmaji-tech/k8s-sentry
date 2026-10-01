@@ -1,0 +1,9 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "k8s-sentry.namespace" . }}
+  labels:
+    {{- include "k8s-sentry.labels" . | nindent 4 }}
+    purpose: agent-testbed
+{{- end }}

@@ -1,0 +1,84 @@
+# Default values for k8s-sentry.
+# Override with `-f my-values.yaml` or `--set key=value`.
+
+# The namespace the agent runs in AND the only namespace it may inspect.
+namespace:
+  name: devops-lab
+  # When true, the chart creates the namespace. Set false if it already exists
+  # or is managed elsewhere (e.g. by Terraform / a namespaces chart).
+  create: true
+
+image:
+  repository: k8s-sentry            # e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com/k8s-sentry
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# Optional list of imagePullSecrets names for private registries.
+imagePullSecrets: []
+
+replicaCount: 1
+
+# --- Agent configuration (non-secret) -> rendered into a ConfigMap/env ---
+config:
+  targetNamespace: devops-lab
+  agentMode: read_only              # do NOT change; enforced guardrail
+  logLevel: INFO
+  logTailLines: 50
+  anthropicModel: claude-sonnet-4-5-20250929
+  slackEnabled: true
+  unhealthyReasons: "CrashLoopBackOff,ImagePullBackOff,ErrImagePull,Error,CreateContainerConfigError,RunContainerError,OOMKilled"
+
+# --- Secrets -------------------------------------------------------------
+# Two ways to supply secrets:
+#  1. create=true: the chart renders a Secret from the values below. Handy for
+#     dev, but avoid committing real values — pass them via --set or a private
+#     values file.
+#  2. create=false + existingSecret: reference a Secret you manage out-of-band
+#     (recommended: External Secrets Operator / AWS Secrets Manager CSI).
+secrets:
+  create: true
+  existingSecret: ""                # name of a pre-existing Secret (if create=false)
+  anthropicApiKey: ""               # REQUIRED if create=true
+  slackWebhookUrl: ""
+
+rbac:
+  # Create the read-only ClusterRole + binding. Keep true unless you manage
+  # RBAC separately.
+  create: true
+  # namespaced = RoleBinding scoped to the release namespace (default, safest).
+  # cluster    = ClusterRoleBinding for cluster-wide read visibility.
+  scope: namespaced
+
+serviceAccount:
+  create: true
+  name: ""                          # defaults to the release fullname
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+# Pod- and container-level hardening (least privilege, non-root).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

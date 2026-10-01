@@ -1,0 +1,19 @@
+# --- K8s-Sentry runtime dependencies ---
+# Pinned for reproducible builds. Bump deliberately.
+
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Kubernetes cluster telemetry
+kubernetes==31.0.0
+
+# LLM root-cause analysis
+anthropic==0.40.0
+
+# Slack notifications / outbound HTTP
+httpx==0.28.1
+
+# Config loading
+python-dotenv==1.0.1

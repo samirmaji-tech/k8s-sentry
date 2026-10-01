@@ -1,0 +1,36 @@
+# =====================================================================
+# FAULT #1 — CrashLoopBackOff
+#
+# The container starts, runs a command that exits non-zero after 2s, and
+# is restarted forever. This is a classic "app boots then dies" incident
+# the agent should diagnose from logs + restart count + container status.
+# =====================================================================
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crashloop-app
+  namespace: devops-lab
+  labels:
+    app: crashloop-app
+    fault: crashloopbackoff
+spec:
+  restartPolicy: Always
+  containers:
+    - name: faulty
+      image: busybox:1.36
+      # Simulate an app that logs, then fails a required startup check.
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          echo "[boot] starting faulty-service v1.2.3";
+          echo "[boot] connecting to database at db.devops-lab.svc:5432";
+          sleep 2;
+          echo "[fatal] DB_PASSWORD env var not set — cannot start" >&2;
+          exit 1;
+      resources:
+        requests:
+          cpu: "10m"
+          memory: "16Mi"
+        limits:
+          cpu: "50m"
+          memory: "32Mi"

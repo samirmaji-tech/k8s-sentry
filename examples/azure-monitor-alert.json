@@ -1,0 +1,36 @@
+{
+  "schemaId": "azureMonitorCommonAlertSchema",
+  "data": {
+    "essentials": {
+      "alertId": "/subscriptions/xxxx/providers/Microsoft.AlertsManagement/alerts/abcd1234",
+      "alertRule": "aks-pod-restart-count",
+      "severity": "Sev2",
+      "signalType": "Metric",
+      "monitorCondition": "Fired",
+      "monitoringService": "Platform",
+      "alertTargetIDs": [
+        "/subscriptions/xxxx/resourceGroups/rg-k8s-sentry/providers/Microsoft.ContainerService/managedClusters/aks-sentry-cluster"
+      ],
+      "firedDateTime": "2026-08-29T06:00:00.000Z",
+      "description": "Pod restart count exceeded threshold in devops-lab"
+    },
+    "alertContext": {
+      "condition": {
+        "allOf": [
+          {
+            "metricName": "pod_number_of_container_restarts",
+            "metricNamespace": "Insights.Container/pods",
+            "operator": "GreaterThan",
+            "threshold": "3",
+            "timeAggregation": "Average",
+            "dimensions": [
+              {"name": "namespace", "value": "devops-lab"},
+              {"name": "pod", "value": "crashloop-app"}
+            ],
+            "metricValue": 5
+          }
+        ]
+      }
+    }
+  }
+}

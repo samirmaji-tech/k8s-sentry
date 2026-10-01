@@ -1,0 +1,117 @@
+# =====================================================================
+# K8s-Sentry agent — Deployment + Service.
+#
+# Runs the FastAPI webhook receiver in-cluster using the read-only
+# ServiceAccount.
+#
+# Anthropic and Slack are disabled for now because no API credentials
+# are configured. The application will use its built-in heuristic
+# fallback for analysis and skip Slack notifications.
+# =====================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: k8s-sentry
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: k8s-sentry
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k8s-sentry
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k8s-sentry
+
+    spec:
+      serviceAccountName: k8s-sentry
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: agent
+          image: k8s-sentry:0.1.1
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          env:
+            - name: ANTHROPIC_API_KEY
+              value: ""
+
+            - name: SLACK_ENABLED
+              value: "false"
+
+            - name: TARGET_NAMESPACE
+              value: "devops-lab"
+
+            - name: AGENT_MODE
+              value: "read_only"
+
+            - name: LOG_LEVEL
+              value: "INFO"
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: k8s-sentry
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: k8s-sentry
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: k8s-sentry
+
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

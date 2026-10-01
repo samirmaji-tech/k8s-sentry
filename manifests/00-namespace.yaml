@@ -1,0 +1,9 @@
+# Dedicated blast-radius namespace for the K8s-Sentry testbed.
+# The agent's RBAC is scoped so it can only read from this namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-lab
+  labels:
+    app.kubernetes.io/part-of: k8s-sentry
+    purpose: agent-testbed

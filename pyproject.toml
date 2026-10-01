@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# pycodestyle errors (E), pyflakes (F), isort (I), bugbear (B), pyupgrade (UP).
+select = ["E", "F", "I", "B", "UP"]
+# BLE001-style broad excepts are intentional in the agent (a failed LLM/Slack
+# call must never crash incident handling), so we don't enable BLE here.
+ignore = ["E501"]  # long lines are tolerated; formatting handled separately
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,8 @@
+{
+  "Type": "Notification",
+  "MessageId": "1b2c3d4e-0000-1111-2222-333344445555",
+  "TopicArn": "arn:aws:sns:ap-south-1:123456789012:eks-sentry-alerts",
+  "Subject": "ALARM: pod-crashloop in devops-lab",
+  "Message": "{\"AlarmName\":\"pod-crashloop\",\"NewStateValue\":\"ALARM\",\"Trigger\":{\"Namespace\":\"ContainerInsights\",\"MetricName\":\"pod_number_of_container_restarts\",\"Dimensions\":[{\"name\":\"Namespace\",\"value\":\"devops-lab\"},{\"name\":\"PodName\",\"value\":\"crashloop-app\"}]}}",
+  "Timestamp": "2026-08-29T06:00:00.000Z"
+}

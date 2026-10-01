@@ -1,0 +1,21 @@
+K8s-Sentry ({{ .Chart.AppVersion }}) is installed as release "{{ .Release.Name }}".
+
+Namespace : {{ include "k8s-sentry.namespace" . }}
+Agent mode: {{ .Values.config.agentMode }} (read-only — remediation is advisory)
+LLM model : {{ .Values.config.anthropicModel }}
+
+1. Check the agent is running:
+   kubectl -n {{ include "k8s-sentry.namespace" . }} rollout status deploy/{{ include "k8s-sentry.fullname" . }}
+
+2. Port-forward and trigger an analysis:
+   kubectl -n {{ include "k8s-sentry.namespace" . }} port-forward svc/{{ include "k8s-sentry.fullname" . }} 8080:{{ .Values.service.port }}
+   curl -s -X POST localhost:8080/analyze -H 'Content-Type: application/json' \
+     -d '{"namespace":"{{ .Values.config.targetNamespace }}"}' | jq
+
+{{- if and .Values.secrets.create (not .Values.secrets.anthropicApiKey) }}
+
+WARNING: secrets.create=true but no anthropicApiKey was provided — the install
+would have failed. Re-run with:
+   helm upgrade --install {{ .Release.Name }} charts/k8s-sentry \
+     --set secrets.anthropicApiKey=sk-ant-... --set secrets.slackWebhookUrl=https://hooks.slack.com/...
+{{- end }}

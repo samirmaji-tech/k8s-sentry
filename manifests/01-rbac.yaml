@@ -1,0 +1,63 @@
+# =====================================================================
+# READ-ONLY RBAC for K8s-Sentry.
+#
+# GUARDRAIL: The agent's ServiceAccount is granted ONLY get/list/watch.
+# There is no create/update/patch/delete/exec verb anywhere. Even if the
+# LLM were prompt-injected into "suggesting" a destructive action, the
+# agent physically cannot execute it against the API server.
+# =====================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-sentry
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: k8s-sentry
+---
+# Cluster-scoped read-only role. We bind it namespace-scoped below via a
+# RoleBinding so the SA can only read the devops-lab namespace, not the
+# whole cluster. (Swap the RoleBinding for a ClusterRoleBinding only if
+# you deliberately want cluster-wide read visibility.)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-sentry-readonly
+  labels:
+    app.kubernetes.io/name: k8s-sentry
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - events
+      - services
+      - endpoints
+      - configmaps            # metadata only; secrets are intentionally excluded
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["events.k8s.io"]
+    resources:
+      - events
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-sentry-readonly
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: k8s-sentry
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-sentry-readonly
+subjects:
+  - kind: ServiceAccount
+    name: k8s-sentry
+    namespace: devops-lab

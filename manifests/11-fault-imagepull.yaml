@@ -1,0 +1,40 @@
+# =====================================================================
+# FAULT #2 — ImagePullBackOff / ErrImagePull
+#
+# References an image tag that does not exist. The Pod never becomes
+# Ready; the kubelet emits Failed/BackOff events. The agent should
+# diagnose this from the container "waiting" reason + Warning events,
+# NOT from logs (there are none — the container never started).
+# =====================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: imagepull-app
+  namespace: devops-lab
+  labels:
+    app: imagepull-app
+    fault: imagepullbackoff
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: imagepull-app
+  template:
+    metadata:
+      labels:
+        app: imagepull-app
+        fault: imagepullbackoff
+    spec:
+      containers:
+        - name: web
+          # This tag does not exist on Docker Hub -> ImagePullBackOff.
+          image: nginx:this-tag-does-not-exist-9999
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "32Mi"
