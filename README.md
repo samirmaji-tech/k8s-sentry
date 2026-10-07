@@ -1,13 +1,20 @@
 # K8s-Sentry 🛡️
 
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC)
+![Azure AKS](https://img.shields.io/badge/cloud-Azure%20AKS-0078D4)
+![Agent mode](https://img.shields.io/badge/agent-read--only-green)
+![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
+
 **An Autonomous AI-Powered Infrastructure Troubleshooting & Incident Commander Agent for Azure AKS.**
+
+> Alert fires → agent collects live Kubernetes evidence → secrets are masked → Claude finds the root cause → a safe, advisory fix lands in Slack for a human to review.
 
 K8s-Sentry is a read-only AI SRE agent. It listens for alerts (Azure Monitor;
 AWS SNS/CloudWatch also supported), pulls live Kubernetes telemetry from the
 failing workload, sanitises it, asks an LLM to perform root-cause analysis, and
 posts a clean, actionable incident summary to Slack — with **safe, advisory**
-remediation
-steps a human reviews before running.
+remediation steps a human reviews before running.
 
 > Portfolio context — Project 3 of a Cloud/DevOps series
 > (Project 1: GKE GitOps & Observability · Project 2: Zero-Trust DevSecOps).
@@ -20,17 +27,56 @@ steps a human reviews before running.
 
 1. [Architecture](#architecture)
 2. [How it works — the incident pipeline](#how-it-works--the-incident-pipeline)
-3. [Repository layout](#repository-layout)
-4. [Prerequisites](#prerequisites)
-5. [Setup](#setup)
-6. [Running & testing the agent](#running--testing-the-agent)
-7. [Security guardrails](#security-guardrails)
-8. [Cost & teardown](#cost--teardown)
-9. [Troubleshooting](#troubleshooting)
+3. [Demo](#demo)
+4. [Repository layout](#repository-layout)
+5. [Prerequisites](#prerequisites)
+6. [Setup](#setup)
+7. [Running & testing the agent](#running--testing-the-agent)
+8. [Tests & CI/CD](#tests--cicd)
+9. [Security guardrails](#security-guardrails)
+10. [Cost & teardown](#cost--teardown)
+11. [Troubleshooting](#troubleshooting)
+12. [Roadmap ideas](#roadmap-ideas)
+13. [License](#license)
 
 ---
 
 ## Architecture
+
+![K8s-Sentry architecture](docs/architecture.png)
+
+The diagram above shows the full platform. The flowchart below is the
+text-based version (it renders natively on GitHub and is easy to edit):
+
+```mermaid
+flowchart TD
+    DEV[Developer] -->|git push| GH[GitHub repository]
+    GH --> CI["GitHub Actions<br/>lint, test, az acr build"]
+    CI -->|push image| ACR[Azure Container Registry]
+    GH -->|terraform apply| TF[Terraform]
+    TF -->|provisions| AKS
+
+    AM[Azure Monitor alert rule] --> AG["Action Group<br/>webhook POST"]
+    AG --> P
+
+    subgraph AKS["AKS cluster · devops-lab namespace"]
+        direction LR
+        P["Parse<br/>main.py"] --> C["Collect<br/>agent.py"]
+        C --> M["Mask secrets and PII<br/>masking.py"]
+        M --> A["Analyse<br/>llm_analyzer.py"]
+        A --> N["Notify<br/>notifier.py"]
+    end
+
+    ACR -->|image pull| AKS
+    C -->|"get / list / watch"| K8S["Kubernetes API<br/>read-only RBAC"]
+    A -->|masked evidence| LLM["Claude API<br/>strict JSON"]
+    N --> SL["Slack<br/>Block Kit card"]
+    SL --> HR[Human review]
+
+    style M fill:#FAECE7,stroke:#993C1D,color:#712B13
+```
+
+And the same pipeline as a code-level sketch:
 
 ```
                     ┌──────────────────────┐
@@ -111,6 +157,16 @@ every unhealthy pod it finds.
 
 ---
 
+## Demo
+
+<!-- Add a screenshot of a real incident card in Slack at docs/slack-incident.png -->
+![Slack incident card](docs/slack-incident.png)
+
+*An incident card posted to Slack for the `crashloop-app` test fault: root
+cause, severity, safe remediation commands and a prevention tip.*
+
+---
+
 ## Repository layout
 
 ```
@@ -147,6 +203,8 @@ k8s-sentry/
 │   ├── main.tf            # resource group + AKS (aks-sentry-cluster)
 │   └── outputs.tf         # kubeconfig command, resource_group_name, cluster_name
 ├── docs/
+│   ├── architecture.png           # platform architecture diagram
+│   ├── slack-incident.png         # demo screenshot
 │   └── K8s-Sentry-AKS-Guide.md    # full Mac+Windows Azure walkthrough
 ├── examples/
 │   ├── azure-monitor-alert.json   # sample Azure Monitor common alert schema
@@ -515,6 +573,12 @@ cd terraform && terraform destroy
 - Add a "confidence" score and auto-open a Jira/GitHub issue on HIGH+.
 - Optional, human-approved auto-remediation via a separate, tightly-scoped
   write identity behind a manual gate.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ---
 
