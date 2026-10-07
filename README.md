@@ -1,15 +1,13 @@
 # K8s-Sentry 🛡️
 
-![Python](https://img.shields.io/badge/python-3.12-blue)
-![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC)
-![Azure AKS](https://img.shields.io/badge/cloud-Azure%20AKS-0078D4)
-![Agent mode](https://img.shields.io/badge/agent-read--only-green)
-![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
+[![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
+[![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC)](https://www.terraform.io/)
+[![Azure AKS](https://img.shields.io/badge/cloud-Azure%20AKS-0078D4)](https://azure.microsoft.com/en-us/products/kubernetes-service)
+[![Agent mode](https://img.shields.io/badge/agent-read--only-green)](#security-guardrails)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)](https://github.com/samirmaji-tech/k8s-sentry/actions)
 
-## Architecture
-
-*An Autonomous AI-Powered Infrastructure Troubleshooting & Incident Commander Agent for Azure AKS.**
-
+> *An Autonomous AI-Powered Infrastructure Troubleshooting & Incident Commander Agent for Azure AKS.*
+>
 > Alert fires → agent collects live Kubernetes evidence → secrets are masked → Claude finds the root cause → a safe, advisory fix lands in Slack for a human to review.
 
 K8s-Sentry is a read-only AI SRE agent. It listens for alerts (Azure Monitor;
@@ -45,12 +43,13 @@ remediation steps a human reviews before running.
 
 ## Architecture
 
-![K8s-Sentry architecture](docs/architecture.png)
+[![K8s-Sentry architecture](https://github.com/samirmaji-tech/k8s-sentry/raw/main/docs/architecture.png)](docs/architecture.png)
 
-*Terraform provisions the Azure AKS infrastructure; K8s-Sentry then detects incidents, collects Kubernetes evidence, performs AI-assisted root cause analysis and delivers actionable notifications.*
+*Terraform provisions the Azure AKS infrastructure; K8s-Sentry then detects
+incidents, collects Kubernetes evidence, performs AI-assisted root cause
+analysis and delivers actionable notifications.*
 
-<details>
-<summary>Text version of the platform (Mermaid)</summary>
+**Text version of the platform (Mermaid)**
 
 ```mermaid
 flowchart TD
@@ -80,34 +79,32 @@ flowchart TD
     style M fill:#FAECE7,stroke:#993C1D,color:#712B13
 ```
 
-</details>
-
 Code-level sketch of the agent:
 
 ```
-                    ┌──────────────────────┐
-   Azure Monitor ──►│   Action Group        │
-   alert rule       │   (webhook action)    │
-                    └───────────┬───────────┘
-                                │  HTTP POST (alert JSON)
-                                ▼
-   ┌───────────────────────────────────────────────────────────┐
-   │  K8s-Sentry  (FastAPI, runs in-cluster on AKS)             │
-   │                                                            │
-   │   main.py      ── parse alert, orchestrate                 │
-   │      │                                                     │
-   │      ▼                                                     │
-   │   agent.py     ── READ-ONLY: describe pod, events, logs ───┼──► AKS API
-   │      │                                          (RBAC: get/list/watch)
-   │      ▼                                                     │
-   │   masking.py   ── strip secrets / PII                      │
-   │      │                                                     │
-   │      ▼                                                     │
-   │   llm_analyzer ── Anthropic API, strict JSON contract ─────┼──► Claude
-   │      │                                                     │
-   │      ▼                                                     │
-   │   notifier.py  ── format Block Kit summary ───────────────┼──► Slack
-   └───────────────────────────────────────────────────────────┘
+                 ┌──────────────────────┐
+Azure Monitor ──►│   Action Group        │
+alert rule       │   (webhook action)    │
+                 └───────────┬───────────┘
+                             │  HTTP POST (alert JSON)
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│  K8s-Sentry  (FastAPI, runs in-cluster on AKS)             │
+│                                                            │
+│   main.py      ── parse alert, orchestrate                 │
+│      │                                                     │
+│      ▼                                                     │
+│   agent.py     ── READ-ONLY: describe pod, events, logs ───┼──► AKS API
+│      │                                          (RBAC: get/list/watch)
+│      ▼                                                     │
+│   masking.py   ── strip secrets / PII                      │
+│      │                                                     │
+│      ▼                                                     │
+│   llm_analyzer ── Anthropic API, strict JSON contract ─────┼──► Claude
+│      │                                                     │
+│      ▼                                                     │
+│   notifier.py  ── format Block Kit summary ───────────────┼──► Slack
+└───────────────────────────────────────────────────────────┘
 ```
 
 The agent runs as a Deployment inside the `devops-lab` namespace using a
@@ -129,16 +126,19 @@ An alert hits `POST /webhook`. The agent then:
    (`data.alertContext.condition.allOf[].dimensions`), the AWS SNS envelope
    (including the one-time `SubscriptionConfirmation` handshake), CloudWatch
    alarm JSON (`Trigger.Dimensions`), or a plain `{ "namespace": ..., "pod": ... }`
-   body. The target namespace is **coerced to the configured scope** so an alert
-   can never point the agent at a namespace it isn't allowed to inspect.
+   body. The target namespace is **coerced to the configured scope** so an
+   alert can never point the agent at a namespace it isn't allowed to inspect.
+
 2. **Collects evidence** (`agent.py`) via the Kubernetes API — the same things
    a human runs by hand: `describe pod`, recent `events`, and the last
    `LOG_TAIL_LINES` (default 50) log lines per container. For crash-looping
    pods it automatically falls back to the **previous** container instance's
    logs, where the real error lives.
+
 3. **Masks** (`masking.py`) the entire evidence bundle — API keys, JWTs, AWS
    keys, connection strings, emails, IPs, and `password=`/`token=` style
    pairs are redacted **before anything leaves the cluster**.
+
 4. **Analyses** (`llm_analyzer.py`) by sending the masked evidence to Claude
    under a strict system prompt that forces a single JSON object:
 
@@ -151,22 +151,23 @@ An alert hits `POST /webhook`. The agent then:
    }
    ```
 
-   The response is defensively parsed (code-fence tolerant) and schema-validated
-   with Pydantic. If the LLM is unavailable or misbehaves, a deterministic
-   heuristic fallback keeps the agent useful.
+   The response is defensively parsed (code-fence tolerant) and
+   schema-validated with Pydantic. If the LLM is unavailable or misbehaves, a
+   deterministic heuristic fallback keeps the agent useful.
+
 5. **Notifies** (`notifier.py`) Slack with a colour-coded Block Kit summary.
    Slack failures are logged, never fatal.
+
 6. **Returns** the structured result over HTTP for logging/automation.
 
-If no pod is named in the alert, the agent **scans** the namespace and analyses
-every unhealthy pod it finds.
+If no pod is named in the alert, the agent **scans** the namespace and
+analyses every unhealthy pod it finds.
 
 ---
 
 ## Demo
 
-<!-- Add a screenshot of a real incident card in Slack at docs/slack-incident.png -->
-![Slack incident card](docs/slack-incident.png)
+[![Slack incident card](https://github.com/samirmaji-tech/k8s-sentry/raw/main/docs/slack-incident.png)](docs/slack-incident.png)
 
 *An incident card posted to Slack for the `crashloop-app` test fault: root
 cause, severity, safe remediation commands and a prevention tip.*
@@ -237,7 +238,8 @@ k8s-sentry/
 - An **Anthropic API key** (`ANTHROPIC_API_KEY`)
 - A **Slack incoming webhook** URL (optional — set `SLACK_ENABLED=false` to skip)
 
-> New to the tooling? The [AKS guide](docs/K8s-Sentry-AKS-Guide.md) has copy-paste
+> New to the tooling? The
+> [AKS guide](docs/K8s-Sentry-AKS-Guide.md) has copy-paste
 > install commands for macOS (Homebrew) and Windows (winget/Chocolatey).
 
 ---
@@ -333,9 +335,9 @@ helm upgrade --install k8s-sentry charts/k8s-sentry \
   --set image.repository="$LOGIN/k8s-sentry" --set image.tag=0.1.0
 ```
 
-Key `values.yaml` knobs: `namespace.*`, `image.*`, `config.*` (model, log tail,
-unhealthy reasons), `secrets.*`, `rbac.scope` (`namespaced` | `cluster`), and
-the `resources`/`securityContext` blocks.
+Key `values.yaml` knobs: `namespace.*`, `image.*`, `config.*` (model, log
+tail, unhealthy reasons), `secrets.*`, `rbac.scope` (`namespaced` | `cluster`),
+and the `resources`/`securityContext` blocks.
 
 ---
 
@@ -397,12 +399,12 @@ You should get JSON like:
 ### Wire up real alerts (Azure Monitor → agent)
 
 Enable **Container Insights** on the AKS cluster, create an **alert rule**
-(e.g. on `pod_number_of_container_restarts`) scoped to `devops-lab`, and attach
-an **Action Group** with a **webhook** action pointing at the agent's `/webhook`
-URL. The agent reads the namespace/pod straight from the Azure Monitor common
-alert schema; if the alert names no pod, it scans the namespace instead. (An AWS
-SNS topic + CloudWatch alarm works too — the agent auto-confirms the SNS
-subscription handshake on first call.)
+(e.g. on `pod_number_of_container_restarts`) scoped to `devops-lab`, and
+attach an **Action Group** with a **webhook** action pointing at the agent's
+`/webhook` URL. The agent reads the namespace/pod straight from the Azure
+Monitor common alert schema; if the alert names no pod, it scans the
+namespace instead. (An AWS SNS topic + CloudWatch alarm works too — the agent
+auto-confirms the SNS subscription handshake on first call.)
 
 ### Run locally (no cluster deploy)
 
@@ -417,10 +419,10 @@ uvicorn app.main:app --reload --port 8080
 
 ## Tests & CI/CD
 
-The `tests/` suite runs fully offline (no cluster, no API key — `conftest.py`
-forces the fallback paths) and covers the three things most likely to break: the
-secret/PII masking guardrail, the LLM JSON-extraction logic, and webhook alert
-parsing.
+The `tests/` suite runs fully offline (no cluster, no API key —
+`conftest.py` forces the fallback paths) and covers the three things most
+likely to break: the secret/PII masking guardrail, the LLM JSON-extraction
+logic, and webhook alert parsing.
 
 ```bash
 pip install -r requirements-dev.txt
@@ -432,12 +434,12 @@ pytest -q                 # 33 tests
 
 - **lint-test** — installs deps, runs `ruff check` and `pytest`.
 - **build-push** — on pushes to `main`/tags only, signs in to Azure via
-  **GitHub OIDC** (no static credentials) and runs `az acr build` to build the
-  image server-side in **Azure Container Registry** and push it, tagged with the
-  commit SHA and `latest`.
+  **GitHub OIDC** (no static credentials) and runs `az acr build` to build
+  the image server-side in **Azure Container Registry** and push it, tagged
+  with the commit SHA and `latest`.
 
-To enable the publish job, set up a **federated credential** so GitHub Actions
-can sign in to Azure without secrets:
+To enable the publish job, set up a **federated credential** so GitHub
+Actions can sign in to Azure without secrets:
 
 ```bash
 # 1. Create an app registration (service principal) and note its appId.
@@ -468,64 +470,65 @@ az ad app federated-credential create --id "$APP_ID" --parameters '{
 }'
 ```
 
-> **Branch vs tag runs.** A federated credential's `subject` must match the exact
-> trigger. The workflow runs on both pushes to `main` and pushes of `v*` tags, so
-> each needs its own credential (steps 3 and 4). If you only ever push to `main`,
-> step 4 is optional.
+> **Branch vs tag runs.** A federated credential's `subject` must match the
+> exact trigger. The workflow runs on both pushes to `main` and pushes of
+> `v*` tags, so each needs its own credential (steps 3 and 4). If you only
+> ever push to `main`, step 4 is optional.
 
 Then add these to your GitHub repo (**Settings → Secrets and variables → Actions**):
 
-| Kind | Name | Value |
-| --- | --- | --- |
-| Secret | `AZURE_CLIENT_ID` | the app registration's `appId` |
-| Secret | `AZURE_TENANT_ID` | `az account show --query tenantId -o tsv` |
-| Secret | `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv` |
-| Variable | `ACR_NAME` | your registry name, e.g. `acrsentry123` (not the login server) |
+| Kind     | Name                    | Value                                                          |
+| -------- | ----------------------- | ---------------------------------------------------------------|
+| Secret   | `AZURE_CLIENT_ID`       | the app registration's `appId`                                 |
+| Secret   | `AZURE_TENANT_ID`       | `az account show --query tenantId -o tsv`                      |
+| Secret   | `AZURE_SUBSCRIPTION_ID` | `az account show --query id -o tsv`                            |
+| Variable | `ACR_NAME`              | your registry name, e.g. `acrsentry123` (not the login server) |
 
 ---
 
 ## Security guardrails
 
-Defence-in-depth is the point of this project. The guardrails are layered so a
-failure of any single one does not lead to a destructive action or a secret
-leak.
+Defence-in-depth is the point of this project. The guardrails are layered so
+a failure of any single one does not lead to a destructive action or a
+secret leak.
 
 ### 1. Read-only Kubernetes access (enforced by RBAC, not by trust)
 
-The agent's ServiceAccount is bound to a ClusterRole with **only**
-`get`, `list`, `watch` on pods, pod logs, events, and workload objects
+The agent's ServiceAccount is bound to a ClusterRole with **only** `get`,
+`list`, `watch` on pods, pod logs, events, and workload objects
 (`manifests/01-rbac.yaml`). There is **no** `create/update/patch/delete/exec`
-verb anywhere, and Secrets are deliberately excluded from the rules. Even if the
-LLM were prompt-injected into "suggesting" `kubectl delete`, the agent's
+verb anywhere, and Secrets are deliberately excluded from the rules. Even if
+the LLM were prompt-injected into "suggesting" `kubectl delete`, the agent's
 credentials physically cannot perform it against the API server.
 
 ### 2. Advisory-only remediation
 
 `AGENT_MODE=read_only` and the LLM system prompt both constrain output to
-*suggested* commands. The agent never shells out to `kubectl` or the API to make
-changes — `remediation_steps` are strings for a human to review. Namespace,
-PersistentVolume, and cluster-scoped deletions are explicitly forbidden by the
-prompt.
+*suggested* commands. The agent never shells out to `kubectl` or the API to
+make changes — `remediation_steps` are strings for a human to review.
+Namespace, PersistentVolume, and cluster-scoped deletions are explicitly
+forbidden by the prompt.
 
 ### 3. Secret & PII masking before the LLM
 
-`masking.py` scrubs the **entire** evidence bundle before it is sent to Claude:
-API keys (`sk-…`), AWS access keys (`AKIA…`), JWTs, GitHub/Slack tokens, private
-key blocks, `scheme://user:pass@host` connection strings, `password=/token=`
-pairs, `Bearer` tokens, email addresses, and IPv4 addresses. Redactions keep the
-*shape* (`***REDACTED_JWT***`) so the model still understands "a secret was here"
-without ever seeing it. Extend the `_RULES` list for org-specific patterns.
+`masking.py` scrubs the **entire** evidence bundle before it is sent to
+Claude: API keys (`sk-…`), AWS access keys (`AKIA…`), JWTs, GitHub/Slack
+tokens, private key blocks, `scheme://user:pass@host` connection strings,
+`password=/token=` pairs, `Bearer` tokens, email addresses, and IPv4
+addresses. Redactions keep the *shape* (`***REDACTED_JWT***`) so the model
+still understands "a secret was here" without ever seeing it. Extend the
+`_RULES` list for org-specific patterns.
 
 ### 4. Namespace scoping
 
-Alerts are coerced to `TARGET_NAMESPACE`; the agent will not inspect a namespace
-outside its configured scope even if an alert asks it to. Combine with the
-namespace-scoped RoleBinding for two independent layers.
+Alerts are coerced to `TARGET_NAMESPACE`; the agent will not inspect a
+namespace outside its configured scope even if an alert asks it to. Combine
+with the namespace-scoped RoleBinding for two independent layers.
 
 ### 5. Bounded data collection
 
-Logs are capped at `LOG_TAIL_LINES` (default 50) per container, limiting both
-LLM cost and the volume of potentially sensitive data handled.
+Logs are capped at `LOG_TAIL_LINES` (default 50) per container, limiting
+both LLM cost and the volume of potentially sensitive data handled.
 
 ### 6. Hardened container & least privilege
 
@@ -537,21 +540,22 @@ capabilities dropped, and `seccompProfile: RuntimeDefault`
 ### 7. Secrets hygiene
 
 `.env` and `*.tfvars`/state are git-ignored. Prefer creating the Kubernetes
-Secret from the CLI (or, in production, the **Azure Key Vault Secrets Store CSI
-driver** / **External Secrets Operator**) over committing a Secret manifest.
+Secret from the CLI (or, in production, the **Azure Key Vault Secrets Store
+CSI driver** / **External Secrets Operator**) over committing a Secret
+manifest.
 
-> **Production hardening checklist:** restrict the AKS API server to known IP
-> ranges (authorized IP ranges), front the webhook with auth, store secrets in
-> **Azure Key Vault**, enable AKS control-plane diagnostic logs, and run the LLM
-> calls through a rate limiter and per-incident budget cap.
+> **Production hardening checklist:** restrict the AKS API server to known
+> IP ranges (authorized IP ranges), front the webhook with auth, store
+> secrets in **Azure Key Vault**, enable AKS control-plane diagnostic logs,
+> and run the LLM calls through a rate limiter and per-incident budget cap.
 
 ---
 
 ## Cost & teardown
 
-This lab runs an AKS cluster (Free control-plane tier) plus 2× `Standard_B2s`
-nodes and a standard load balancer — a few dollars a day. **Tear it down when
-you're finished:**
+This lab runs an AKS cluster (Free control-plane tier) plus 2×
+`Standard_B2s` nodes and a standard load balancer — a few dollars a day.
+**Tear it down when you're finished:**
 
 ```bash
 kubectl delete -f manifests/ --ignore-not-found
@@ -562,13 +566,13 @@ cd terraform && terraform destroy
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| `403 Forbidden` from the K8s API | RBAC not applied | `kubectl apply -f manifests/01-rbac.yaml` |
-| Agent returns heuristic fallback text | `ANTHROPIC_API_KEY` unset/invalid | Check the `k8s-sentry-secrets` Secret |
-| No Slack message | `SLACK_ENABLED=false` or bad webhook | Verify `SLACK_WEBHOOK_URL`; check pod logs |
-| `crashloop-app` logs are empty | Logs are in the previous instance | The agent already falls back to `--previous`; manually: `kubectl -n devops-lab logs crashloop-app --previous` |
-| Terraform auth errors | Not logged in / wrong subscription | `az account show`; re-run `az login` and `az account set` |
+| Symptom                               | Likely cause                         | Fix                                                                                                             |
+| -------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------|
+| `403 Forbidden` from the K8s API       | RBAC not applied                     | `kubectl apply -f manifests/01-rbac.yaml`                                                                       |
+| Agent returns heuristic fallback text | `ANTHROPIC_API_KEY` unset/invalid     | Check the `k8s-sentry-secrets` Secret                                                                           |
+| No Slack message                      | `SLACK_ENABLED=false` or bad webhook  | Verify `SLACK_WEBHOOK_URL`; check pod logs                                                                      |
+| `crashloop-app` logs are empty        | Logs are in the previous instance     | The agent already falls back to `--previous`; manually: `kubectl -n devops-lab logs crashloop-app --previous`  |
+| Terraform auth errors                 | Not logged in / wrong subscription    | `az account show`; re-run `az login` and `az account set`                                                       |
 
 ---
 
@@ -588,4 +592,4 @@ Released under the [MIT License](LICENSE).
 
 ---
 
-_Built by Samir Maji · Cloud/DevOps portfolio._
+*Built by Samir Maji · Cloud/DevOps portfolio.*
