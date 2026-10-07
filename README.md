@@ -8,9 +8,7 @@
 
 ## Architecture
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/samirmaji-tech/k8s-sentry/main/docs/architecture.png" alt="K8s-Sentry architecture" width="100%">
-</p>**An Autonomous AI-Powered Infrastructure Troubleshooting & Incident Commander Agent for Azure AKS.**
+*An Autonomous AI-Powered Infrastructure Troubleshooting & Incident Commander Agent for Azure AKS.**
 
 > Alert fires → agent collects live Kubernetes evidence → secrets are masked → Claude finds the root cause → a safe, advisory fix lands in Slack for a human to review.
 
