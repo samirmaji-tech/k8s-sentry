@@ -45,8 +45,10 @@ remediation steps a human reviews before running.
 
 ![K8s-Sentry architecture](docs/architecture.png)
 
-The diagram above shows the full platform. The flowchart below is the
-text-based version (it renders natively on GitHub and is easy to edit):
+*Terraform provisions the Azure AKS infrastructure; K8s-Sentry then detects incidents, collects Kubernetes evidence, performs AI-assisted root cause analysis and delivers actionable notifications.*
+
+<details>
+<summary>Text version of the platform (Mermaid)</summary>
 
 ```mermaid
 flowchart TD
@@ -76,7 +78,9 @@ flowchart TD
     style M fill:#FAECE7,stroke:#993C1D,color:#712B13
 ```
 
-And the same pipeline as a code-level sketch:
+</details>
+
+Code-level sketch of the agent:
 
 ```
                     ┌──────────────────────┐
